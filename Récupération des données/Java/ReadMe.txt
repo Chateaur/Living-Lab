@@ -1,0 +1,1 @@
+Ce programme Java permet de lire les données sur un port série pour les enregistrer dans un fichier au format CSV.
