@@ -96,7 +96,7 @@ String print_message_capt(){
   
   result = String("Time:" + get_time() + ";");
   result += String("DBM_1:" + String(freq_dbm_1));
-  result += String(";DBM_2:" + String(freq_dbm_2));
+  result += String(";DBM_2:" + String(freq_dbm_2) + ";");
   result += String("#");
 
   return result;
@@ -111,7 +111,7 @@ void setup()
 
     //Initialisation de la date
     while(timeStatus() == timeNotSet){
-      Serial.println("Attente du message de synchronisation date ...");
+      Serial.println("Attente du message de synchronisation date ...#");
       while(Serial.available() == 0){}
       
       if (Serial.available()) {
@@ -119,14 +119,14 @@ void setup()
     
         if (readed[0] == 'T') {
           processSyncMessage(readed);
-          Serial.println(String("Date synchronisee a : " + get_time()));
+          Serial.println(String("Date synchronisee a : " + get_time() + "#"));
        }
       }
     }
     //setTime(1481463967);
 
     //Initialisation du delta pour les mesures
-    Serial.println("Entrez l'intervalle de temps pour l'envoi des mesures (en ms) :");
+    Serial.println("Entrez l'intervalle de temps pour l'envoi des mesures (en ms) : #");
     while(Serial.available() == 0){}
     if (Serial.available()) {
       deltaMs = Serial.parseInt();
