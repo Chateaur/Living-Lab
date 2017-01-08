@@ -1,4 +1,5 @@
 import gnu.io.CommPort;
+
 import gnu.io.CommPortIdentifier;
 import gnu.io.SerialPort;
 
@@ -9,18 +10,32 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
+import java.sql.Time;
+import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
 
-public class readAndWrite
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+
+public class Serial
 {
-    public readAndWrite()
+	private DataBase db;
+	private Config conf;
+	private String port_name;
+	
+    public Serial(DataBase db, Config conf, String port_name) throws Exception
     {
-        super();
+    	this.db = db;
+    	this.conf = conf;
+    	this.port_name = port_name;
+    	
+    	System.out.println("Connexion à l'arduino, port : " + port_name);
+    	this.connect();
     }
     
-    void initTime(OutputStream out) throws IOException
+    void init_time(OutputStream out) throws IOException
     {
     	System.out.println("Initialisation de la date Arduino");
 		long millis = System.currentTimeMillis();
@@ -29,17 +44,25 @@ public class readAndWrite
 		String time_message = "T" + ((millis + offset)/1000l);
 		
 		Date date=new Date(millis);
-		System.out.println("Date envoyee : " + date.toString());
-		
+	
         out.write(time_message.getBytes(Charset.forName("UTF-8")));
+        
+        System.out.println("Date envoyee : " + date.toString());
     }
     
-    void connect ( String portName ) throws Exception
+    void init_freq_sensors (OutputStream out, String freq) throws IOException
     {
-        CommPortIdentifier portIdentifier = CommPortIdentifier.getPortIdentifier(portName);
+        out.write(freq.getBytes(Charset.forName("UTF-8")));
+        
+        System.out.println("Freq envoyee : " + freq);
+    }
+    
+    void connect () throws Exception
+    {
+        CommPortIdentifier portIdentifier = CommPortIdentifier.getPortIdentifier(this.port_name);
         if ( portIdentifier.isCurrentlyOwned() )
         {
-            System.out.println("Error: Port is currently in use");
+            System.out.println("Erreur : port actuellement occupé");
         }
         else
         {
@@ -54,18 +77,16 @@ public class readAndWrite
                 OutputStream out = serialPort.getOutputStream();
                 
                 Thread.sleep(2000);
-                (new Thread(new SerialReader(in))).start();
+                (new Thread(new SerialReader(in, db))).start();
                 (new Thread(new SerialWriter(out))).start();
                 
-                initTime(out);
+                init_time(out);
+                
+                Thread.sleep(2000);
+                
+                init_freq_sensors(out, this.conf.get_property("freq_sensors"));
                 
                 Thread.sleep(1000);
-               
-
-            }
-            else
-            {
-                System.out.println("Error: Only serial ports are handled by this example.");
             }
         }     
     }
@@ -77,10 +98,13 @@ public class readAndWrite
     	private String valueReadedTemp;
     	private String lastValueReaded;
     	
+    	private DataBase db;
+    	
         InputStream in;
         
-        public SerialReader ( InputStream in )
+        public SerialReader (InputStream in, DataBase db)
         {
+        	this.db = db;
             this.in = in;
         }
         
@@ -100,7 +124,15 @@ public class readAndWrite
                 			if(message.contains("#")){
                 				int pos = message.indexOf('#');
                 				
-                				System.out.println("R : " + message.substring(0, pos));
+                				String complete_msg = message.substring(2, pos);
+                				
+                				System.out.println("R : " + complete_msg);
+                				
+                				if(complete_msg.startsWith("DATA;"))
+                				{
+                					decompose_message(complete_msg);
+                				}
+                				
                 				message = message.substring(pos + 1, message.length());
                 			}
                         }
@@ -110,6 +142,29 @@ public class readAndWrite
     				e.printStackTrace();
     			}
                
+        	}
+        }
+        
+        private void decompose_message(String message)
+        {
+        	try{
+            	//Do not treat first split as it is data header
+            	String[] parts = message.split(";");
+            	
+            	org.joda.time.format.DateTimeFormatter dtf = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+            	DateTime date_time = dtf.parseDateTime(parts[1]);
+
+            	for(int i=2; i<parts.length; i++)
+            	{
+            		String[] sensor_parts = parts[i].split(":");
+            		String sensor_name = sensor_parts[0];
+            		int sensor_value = Integer.parseInt(sensor_parts[1]);
+
+            		Sensor mySensor = new Sensor(date_time, sensor_value, db, sensor_name);
+            		mySensor.insert_to_db();
+            	}
+        	}catch (Exception e){
+        		System.out.println("Une erreur est survenue lors de l'extraction du message " + e.getMessage());
         	}
 
         }
@@ -142,24 +197,5 @@ public class readAndWrite
         	}
         }
     }
-    
-    public static void main ( String[] args )
-    {
-        try
-        {
-        	System.out.println("Bienvenue dans le programme de recuperation de donnees Arduino. @ESIGELEC -- PING 93");
-        	System.out.print("Entrez le port de communication (ex. COM3) : ");
-        	
-        	BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
-        	String input = br.readLine();
-        	
-        	readAndWrite arduino = new readAndWrite();
-        	arduino.connect(input);
-        }
-        catch ( Exception e )
-        {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-    }
+
 }

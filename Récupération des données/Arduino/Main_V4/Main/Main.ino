@@ -71,7 +71,7 @@ String getDigits(int digits){
 String get_time(){
   String result;
   
-  result = String( String(hour()) + ":" + getDigits(minute()) + ":" + getDigits(second()) + "_" + day() + "/" + month() + "/" + year());
+  result = String( getDigits(year()) + "-" + getDigits(month()) + "-" + getDigits(day()) + " " + getDigits(hour()) + ":" + getDigits(minute()) + ":" + getDigits(second()));
 
   return result;
 }
@@ -94,9 +94,9 @@ String print_message_capt(){
   unsigned long freq_dbm_1 = (1000 / deltaMs) * high_count_dbm_1;
   unsigned long freq_dbm_2 = (1000 / deltaMs) * high_count_dbm_2;
   
-  result = String("Time:" + get_time() + ";");
-  result += String("DBM_1:" + String(freq_dbm_1));
-  result += String(";DBM_2:" + String(freq_dbm_2) + ";");
+  result = String("DATA;" + get_time() + ";");
+  result += String("debimetre_1:" + String(freq_dbm_1));
+  result += String(";debimetre_2:" + String(freq_dbm_2) + ";");
   result += String("#");
 
   return result;
@@ -126,7 +126,7 @@ void setup()
     //setTime(1481463967);
 
     //Initialisation du delta pour les mesures
-    Serial.println("Entrez l'intervalle de temps pour l'envoi des mesures (en ms) : #");
+    Serial.println("Demande de l'intervalle de temps pour l'envoi des mesures (en ms) : #");
     while(Serial.available() == 0){}
     if (Serial.available()) {
       deltaMs = Serial.parseInt();
